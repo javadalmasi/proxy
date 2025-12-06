@@ -188,12 +188,12 @@ static CLIENT: Lazy<Client> = Lazy::new(|| {
         .timeout(std::time::Duration::from_secs(60)) // Overall request timeout
         .connection_verbose(true); // Enable connection logging for performance tuning
 
-    // Conditionally enable HTTP/3 support based on the http3 feature
-    #[cfg(feature = "http3")]
-    {
-        builder = builder.http3_prior_knowledge();
-    }
-    
+    // The http3 feature is on by default, and reqwest will automatically
+    // negotiate HTTP/3 if the server supports it via ALPN/Alt-Svc.
+    // Using http3_prior_knowledge() can be brittle and may not fall back
+    // correctly if the server doesn't support it. By removing it, we allow
+    // for robust, automatic negotiation.
+
     let proxy = if let Ok(proxy) = env::var("PROXY") {
         reqwest::Proxy::all(proxy).ok()
     } else {
