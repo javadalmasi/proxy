@@ -40,6 +40,8 @@
 - [x] Add comprehensive README documentation
 - [x] Add HTTP/3 (QUIC/UDP) support with fallback to HTTP/2/HTTP/1.1
 - [x] Implement IPv6 connection prioritization
+- [x] Add health check endpoint for container monitoring
+- [x] Add metrics collection for Grafana integration
 
 ## Ideas for Future Development
 

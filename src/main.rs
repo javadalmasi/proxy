@@ -3,11 +3,13 @@ mod utils;
 
 use actix_web::http::StatusCode;
 use actix_web::{web, App, HttpRequest, HttpResponse, HttpResponseBuilder, HttpServer};
+use prometheus::{Encoder, IntCounter, IntGauge, Registry, TextEncoder};
 use listenfd::ListenFd;
 use once_cell::sync::Lazy;
 use qstring::QString;
 use regex::Regex;
 use reqwest::{Body, Client, Request, Url};
+
 use std::error::Error;
 use std::io::ErrorKind;
 use std::net::TcpListener;
@@ -56,9 +58,16 @@ fn try_get_fd_listeners() -> (Option<UnixListener>, Option<TcpListener>) {
 async fn main() -> std::io::Result<()> {
     println!("Running server!");
 
+    // Register metrics
+    REGISTRY.register(Box::new(REQUEST_COUNT.clone())).unwrap();
+    REGISTRY.register(Box::new(ACTIVE_CONNECTIONS.clone())).unwrap();
+
     let mut server = HttpServer::new(|| {
         // match all requests
-        App::new().default_service(web::to(index))
+        App::new()
+            .service(health)
+            .service(metrics)
+            .default_service(web::to(index))
     });
 
     let fd_listeners = try_get_fd_listeners();
@@ -94,11 +103,61 @@ async fn main() -> std::io::Result<()> {
     server.run().await
 }
 
+// Health check endpoint
+#[actix_web::get("/health")]
+async fn health() -> HttpResponse {
+    HttpResponse::Ok().json(serde_json::json!({
+        "status": "healthy",
+        "timestamp": std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs()
+    }))
+}
+
+// Metrics endpoint for Prometheus
+#[actix_web::get("/metrics")]
+async fn metrics() -> HttpResponse {
+    let mut buffer = Vec::new();
+    let encoder = TextEncoder::new();
+    
+    // Increment request counter for the metrics endpoint itself
+    REQUEST_COUNT
+        .with_label_values(&["GET", "200"])
+        .inc();
+    
+    let metric_families = REGISTRY.gather();
+    encoder.encode(&metric_families, &mut buffer).unwrap();
+    
+    HttpResponse::Ok()
+        .content_type("text/plain; version=0.0.4; charset=utf-8")
+        .body(buffer)
+}
+
 static RE_DOMAIN: Lazy<Regex> =
     Lazy::new(|| Regex::new(r"^(?:[a-z\d.-]*\.)?([a-z\d-]*\.[a-z\d-]*)$").unwrap());
 static RE_MANIFEST: Lazy<Regex> = Lazy::new(|| Regex::new("(?m)URI=\"([^\"]+)\"").unwrap());
 static RE_DASH_MANIFEST: Lazy<Regex> =
     Lazy::new(|| Regex::new("BaseURL>(https://[^<]+)</BaseURL").unwrap());
+
+use prometheus::{Histogram, HistogramOpts, IntCounterVec, Opts};
+
+// Metrics
+static REGISTRY: Lazy<Registry> = Lazy::new(Registry::new);
+static REQUEST_COUNT: Lazy<IntCounterVec> = Lazy::new(|| {
+    IntCounterVec::new(
+        Opts::new("http_requests_total", "Total number of HTTP requests"),
+        &["method", "status"]
+    ).unwrap()
+});
+static REQUEST_DURATION: Lazy<Histogram> = Lazy::new(|| {
+    Histogram::with_opts(
+        HistogramOpts::new("http_request_duration_seconds", "HTTP request duration in seconds")
+    ).unwrap()
+});
+static ACTIVE_CONNECTIONS: Lazy<IntGauge> = Lazy::new(|| {
+    IntGauge::new("active_connections", "Number of active connections").unwrap()
+});
 
 static CLIENT: Lazy<Client> = Lazy::new(|| {
     let mut builder = Client::builder()
@@ -278,15 +337,28 @@ fn apply_range_headers(response: &mut HttpResponseBuilder, range_request: &Range
 }
 
 async fn index(req: HttpRequest) -> Result<HttpResponse, Box<dyn Error>> {
+    // Record request start time for duration tracking
+    let start_time = std::time::Instant::now();
+
     if req.method() == actix_web::http::Method::OPTIONS {
         let mut response = HttpResponse::Ok();
         add_headers(&mut response);
+        // Track the request
+        REQUEST_COUNT
+            .with_label_values(&[req.method().as_str(), "200"])
+            .inc();
+        REQUEST_DURATION.observe(start_time.elapsed().as_secs_f64());
         return Ok(response.finish());
     } else if req.method() != actix_web::http::Method::GET
         && req.method() != actix_web::http::Method::HEAD
     {
         let mut response = HttpResponse::MethodNotAllowed();
         add_headers(&mut response);
+        // Track the request with appropriate status code
+        REQUEST_COUNT
+            .with_label_values(&[req.method().as_str(), "405"])
+            .inc();
+        REQUEST_DURATION.observe(start_time.elapsed().as_secs_f64());
         return Ok(response.finish());
     }
 
@@ -480,6 +552,7 @@ async fn index(req: HttpRequest) -> Result<HttpResponse, Box<dyn Error>> {
     }
 
     let resp = CLIENT.execute(request).await?;
+    let mut status_code = resp.status().as_u16().to_string();
 
     let mut response = HttpResponse::build(StatusCode::from_u16(resp.status().as_u16())?);
 
@@ -494,6 +567,18 @@ async fn index(req: HttpRequest) -> Result<HttpResponse, Box<dyn Error>> {
     // Fix range request handling - convert 200 to 206 if we have a range request
     // and ensure Content-Range header is present
     handle_range_response_correction(&mut response, range.as_ref(), &resp);
+    // If range correction modifies the status to 206, update our status code tracking
+    if resp.status().is_success() && range.is_some() && resp.headers().contains_key("content-length") {
+        if resp.status() != reqwest::StatusCode::PARTIAL_CONTENT {
+            let content_length = resp.headers().get("content-length")
+                .and_then(|v| v.to_str().ok())
+                .and_then(|s| s.parse::<u64>().ok());
+            if content_length.is_some() {
+                // Range request corrections may change the status from 200 to 206
+                status_code = "206".to_string();
+            }
+        }
+    }
 
     if rewrite {
         if let Some(content_type) = resp.headers().get("content-type") {
@@ -530,6 +615,13 @@ async fn index(req: HttpRequest) -> Result<HttpResponse, Box<dyn Error>> {
                 .await
                 .unwrap();
                 response.content_type(content_type);
+                
+                // Record metrics before returning
+                REQUEST_COUNT
+                    .with_label_values(&[req.method().as_str(), &status_code])
+                    .inc();
+                REQUEST_DURATION.observe(start_time.elapsed().as_secs_f64());
+                
                 return Ok(response.body(body));
             }
 
@@ -572,6 +664,13 @@ async fn index(req: HttpRequest) -> Result<HttpResponse, Box<dyn Error>> {
                 .await
                 .unwrap();
                 response.content_type(content_type);
+                
+                // Record metrics before returning
+                REQUEST_COUNT
+                    .with_label_values(&[req.method().as_str(), &status_code])
+                    .inc();
+                REQUEST_DURATION.observe(start_time.elapsed().as_secs_f64());
+                
                 return Ok(response.body(body));
             }
 
@@ -598,6 +697,12 @@ async fn index(req: HttpRequest) -> Result<HttpResponse, Box<dyn Error>> {
                     .collect::<Vec<String>>()
                     .join("\n");
 
+                // Record metrics before returning
+                REQUEST_COUNT
+                    .with_label_values(&[req.method().as_str(), &status_code])
+                    .inc();
+                REQUEST_DURATION.observe(start_time.elapsed().as_secs_f64());
+                
                 return Ok(response.body(modified));
             }
             if content_type == "video/vnd.mpeg.dash.mpd" || content_type == "application/dash+xml" {
@@ -610,6 +715,12 @@ async fn index(req: HttpRequest) -> Result<HttpResponse, Box<dyn Error>> {
                     let new_url = utils::escape_xml(new_url.as_str());
                     new_resp = new_resp.replace(url, new_url.as_ref());
                 }
+                // Record metrics before returning
+                REQUEST_COUNT
+                    .with_label_values(&[req.method().as_str(), &status_code])
+                    .inc();
+                REQUEST_DURATION.observe(start_time.elapsed().as_secs_f64());
+                
                 return Ok(response.body(new_resp));
             }
         }
@@ -660,8 +771,20 @@ async fn index(req: HttpRequest) -> Result<HttpResponse, Box<dyn Error>> {
             response.no_chunking(length);
         }
 
+        // Record metrics before returning
+        REQUEST_COUNT
+            .with_label_values(&[req.method().as_str(), &status_code])
+            .inc();
+        REQUEST_DURATION.observe(start_time.elapsed().as_secs_f64());
+        
         return Ok(response.streaming(transformed_stream));
     }
+
+    // Record metrics before returning
+    REQUEST_COUNT
+        .with_label_values(&[req.method().as_str(), &status_code])
+        .inc();
+    REQUEST_DURATION.observe(start_time.elapsed().as_secs_f64());
 
     // Stream response
     Ok(response.streaming(resp.bytes_stream()))

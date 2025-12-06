@@ -6,6 +6,8 @@
 - **SOCKS5 Support**: Can route traffic through SOCKS5 proxies for enhanced privacy and geo-bypass
 - **HTTP/3 (QUIC) Support**: Prioritizes HTTP/3 with UDP for improved performance, falling back to HTTP/2/HTTP/1.1 when not available
 - **IPv6 Priority**: Prefer IPv6 connections when available (disable with `IPV4_ONLY` environment variable)
+- **Health Check Endpoint**: Provides `/health` endpoint for container monitoring
+- **Prometheus Metrics**: Provides `/metrics` endpoint for monitoring and Grafana integration
 - **Image Transcoding**: Optionally transcode images to WebP/AVIF to save bandwidth
 - **Range Request Handling**: Properly handles HTTP range requests for media streaming
 - **Caching Headers**: Preserves caching headers from upstream services
@@ -86,6 +88,29 @@ RUSTFLAGS='--cfg reqwest_unstable' cargo build --release --features http3
 # Run the proxy with HTTP/3 support
 RUSTFLAGS='--cfg reqwest_unstable' ./target/release/piped-proxy
 ```
+
+## Monitoring and Health Checks
+
+### Health Check Endpoint
+The proxy provides a health check endpoint at `/health` that returns a JSON response:
+```json
+{
+  "status": "healthy",
+  "timestamp": 1234567890
+}
+```
+
+### Metrics Endpoint
+The proxy exposes Prometheus metrics at `/metrics` for monitoring and Grafana integration:
+- Access metrics at `http://your-proxy-host:port/metrics`
+- Metrics include request counts, response times, and active connections
+- Compatible with Prometheus and Grafana for comprehensive monitoring dashboards
+
+### Docker and Container Monitoring
+When running in containers, the health check endpoint can be used for:
+- Kubernetes liveness and readiness probes
+- Docker health checks
+- Container orchestrator monitoring
 
 ## Environment-Specific Deployment
 
