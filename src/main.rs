@@ -104,9 +104,11 @@ static CLIENT: Lazy<Client> = Lazy::new(|| {
     let mut builder = Client::builder()
         .user_agent("Mozilla/5.0 (Windows NT 10.0; rv:102.0) Gecko/20100101 Firefox/102.0");
 
-    // Enable HTTP/3 support - this enables HTTP/3 with fallback to HTTP/2/HTTP/1.1
-    // By enabling the http3 feature in Cargo.toml and initializing the client, 
-    // reqwest will automatically try HTTP/3 first if available, falling back to HTTP/2/1.1
+    // Conditionally enable HTTP/3 support based on the http3 feature
+    #[cfg(feature = "http3")]
+    {
+        builder = builder.http3_prior_knowledge();
+    }
     
     let proxy = if let Ok(proxy) = env::var("PROXY") {
         reqwest::Proxy::all(proxy).ok()

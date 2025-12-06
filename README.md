@@ -74,10 +74,16 @@ docker-compose up -d
 git clone https://github.com/javadalmasi/proxy.git
 cd proxy
 
-# Build the project with HTTP/3 support
-RUSTFLAGS='--cfg reqwest_unstable' cargo build --release
+# Build the project (without HTTP/3 support by default)
+cargo build --release
+
+# Build the project with HTTP/3 support (requires unstable flag until HTTP/3 is stable in reqwest)
+RUSTFLAGS='--cfg reqwest_unstable' cargo build --release --features http3
 
 # Run the proxy
+./target/release/piped-proxy
+
+# Run the proxy with HTTP/3 support
 RUSTFLAGS='--cfg reqwest_unstable' ./target/release/piped-proxy
 ```
 
