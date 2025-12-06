@@ -132,7 +132,7 @@ static CLIENT: Lazy<Client> = Lazy::new(|| {
 });
 
 const ANDROID_USER_AGENT: &str = "com.google.android.youtube/1537338816 (Linux; U; Android 13; en_US; ; Build/TQ2A.230505.002; Cronet/113.0.5672.24)";
-const ALLOWED_DOMAINS: [&str; 8] = [
+const ALLOWED_DOMAINS: [&str; 10] = [
     "youtube.com",
     "googlevideo.com",
     "ytimg.com",
@@ -141,6 +141,8 @@ const ALLOWED_DOMAINS: [&str; 8] = [
     "lbryplayer.xyz",
     "odycdn.com",
     "ajay.app",
+    "cloudflare.net",
+    "gvt1.com"
 ];
 
 fn add_headers(response: &mut HttpResponseBuilder) {
