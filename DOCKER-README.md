@@ -1,6 +1,6 @@
-# Docker Setup for Piped-Proxy with WARP SOCKS5 Proxy
+# Docker Setup for Proxy with WARP SOCKS5 Proxy
 
-This setup allows you to run piped-proxy with Cloudflare WARP as a SOCKS5 proxy to bypass regional restrictions.
+This setup allows you to run proxy with Cloudflare WARP as a SOCKS5 proxy to bypass regional restrictions.
 
 ## Prerequisites
 
@@ -22,12 +22,12 @@ This setup allows you to run piped-proxy with Cloudflare WARP as a SOCKS5 proxy 
 ## Configuration
 
 - The WARP container runs on port 1080 (SOCKS5 proxy)
-- The piped-proxy container connects to WARP as its upstream proxy
-- Piped-proxy is accessible on port 8080
+- The proxy container connects to WARP as its upstream proxy
+- Proxy is accessible on port 8080
 
 ## Usage
 
-Once the containers are running, your piped-proxy will be accessible at:
+Once the containers are running, your proxy will be accessible at:
 - `http://localhost:8080`
 
 You can use this as a proxy for Piped or other applications that need to bypass regional restrictions.
@@ -35,7 +35,7 @@ You can use this as a proxy for Piped or other applications that need to bypass 
 ## Environment Variables
 
 The setup uses these environment variables:
-- `PROXY=socks5://warp:1080` - Configures piped-proxy to route traffic through the WARP SOCKS5 proxy
+- `PROXY=socks5://warp:1080` - Configures proxy to route traffic through the WARP SOCKS5 proxy
 
 ## Stopping the Services
 
