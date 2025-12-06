@@ -34,7 +34,7 @@ jobs:
 
       - name: Build binary
         run: |
-          cargo build --release --target x86_64-unknown-linux-gnu
+          RUSTFLAGS='--cfg reqwest_unstable' cargo build --release --target x86_64-unknown-linux-gnu
           mv target/x86_64-unknown-linux-gnu/release/piped-proxy piped-proxy
           chmod +x piped-proxy
 
