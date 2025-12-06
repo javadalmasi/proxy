@@ -4,21 +4,20 @@ WORKDIR /app/
 
 COPY . .
 
-RUN --mount=type=cache,target=/var/cache/apt \
-    apt-get update && \
+# Install dependencies
+RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     nasm && \
     rm -rf /var/lib/apt/lists/*
 
-RUN --mount=type=cache,target=/usr/local/cargo/registry \
-    --mount=type=cache,target=/app/target/   \
-    cargo build --release && \
-    mv target/release/piped-proxy .
+# Build the application with static linking
+RUN RUSTFLAGS='-C target-feature=+crt-static' \
+    cargo build --release --target x86_64-unknown-linux-gnu && \
+    mv target/x86_64-unknown-linux-gnu/release/piped-proxy .
 
 FROM debian:stable-slim
 
-RUN --mount=type=cache,target=/var/cache/apt \
-    apt-get update && \
+RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     ca-certificates && \
     rm -rf /var/lib/apt/lists/*
