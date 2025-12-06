@@ -1,76 +1,42 @@
-name: Build and Push Docker Image to GHCR
+name: Build and Push to GHCR (Simple)
 
 on:
   push:
     branches: 
       - main
-    tags: 
-      - 'v*.*.*'
-  pull_request:
-    branches: 
-      - main
-  workflow_dispatch: # اجازه اجرای دستی
+  workflow_dispatch:
 
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  # Job اول: بیلد باینری (برای Dockerfile ساده)
-  build-binary:
+  build-and-push:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Rust cache
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-unknown-linux-gnu
+
+      - name: Cache Rust
         uses: Swatinem/rust-cache@v2
 
-      - name: Install mold linker
-        uses: rui314/setup-mold@v1
-
-      - name: Set up NASM
+      - name: Install NASM
         uses: ilammy/setup-nasm@v1.5.2
 
       - name: Build binary
         run: |
-          RUSTFLAGS='-C target-feature=+crt-static' cargo build --release --target x86_64-unknown-linux-gnu
-
-      - name: Prepare binary
-        run: |
+          cargo build --release --target x86_64-unknown-linux-gnu
           mv target/x86_64-unknown-linux-gnu/release/piped-proxy piped-proxy
           chmod +x piped-proxy
-
-      - name: Upload binary artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: piped-proxy-binary
-          path: piped-proxy
-          retention-days: 1
-
-  # Job دوم: بیلد و پوش Docker image
-  docker-build-push:
-    needs: build-binary
-    runs-on: ubuntu-latest
-    if: github.event_name != 'pull_request'
-    permissions:
-      contents: read
-      packages: write
-      id-token: write
-      attestations: write
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Download binary artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: piped-proxy-binary
-          path: .
-
-      - name: Make binary executable
-        run: chmod +x piped-proxy
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -78,82 +44,24 @@ jobs:
       - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
-          registry: ${{ env.REGISTRY }}
+          registry: ghcr.io
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract metadata (tags, labels)
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          tags: |
-            type=ref,event=branch
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=sha,prefix=sha-
-            type=raw,value=latest,enable={{is_default_branch}}
-          flavor: |
-            latest=auto
+      - name: Convert repo name to lowercase
+        id: repo
+        run: echo "repo_lower=$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
 
-      - name: Build and push Docker image
+      - name: Build and push
         uses: docker/build-push-action@v5
         with:
           context: .
           file: ./Dockerfile
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          platforms: linux/amd64
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-  # Job سوم: بیلد multi-arch (اختیاری)
-  docker-multiarch:
-    runs-on: ubuntu-latest
-    if: github.event_name != 'pull_request' && startsWith(github.ref, 'refs/tags/')
-    permissions:
-      contents: read
-      packages: write
-      id-token: write
-      attestations: write
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-        with:
-          platforms: arm64
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-
-      - name: Build and push multi-arch image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: ./Dockerfile.multistage
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          platforms: linux/amd64,linux/arm64
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+            ghcr.io/${{ steps.repo.outputs.repo_lower }}:latest
+            ghcr.io/${{ steps.repo.outputs.repo_lower }}:${{ github.sha }}
+          labels: |
+            org.opencontainers.image.source=${{ github.event.repository.html_url }}
+            org.opencontainers.image.revision=${{ github.sha }}
+          platforms: linux/amd64
