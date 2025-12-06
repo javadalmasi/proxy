@@ -34,7 +34,7 @@ jobs:
       - name: Build binary
         run: RUSTFLAGS='-C target-feature=+crt-static' cargo build --release --target x86_64-unknown-linux-gnu
 
-      - name: Move binary
+      - name: Move binary to expected name
         run: mv target/x86_64-unknown-linux-gnu/release/piped-proxy piped-proxy
 
       # Only build Docker image for non-pull request events
@@ -64,7 +64,7 @@ jobs:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
             type=ref,event=branch
-            type=ref,event=pr
+            type=ref=event=pr
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=sha,prefix={{branch}}-
