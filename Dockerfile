@@ -1,4 +1,4 @@
-FROM rust:slim as BUILD
+FROM rust:1.78-slim as build
 
 WORKDIR /app/
 
@@ -10,10 +10,9 @@ RUN apt-get update && \
     nasm && \
     rm -rf /var/lib/apt/lists/*
 
-# Build the application with static linking
-RUN RUSTFLAGS='-C target-feature=+crt-static' \
-    cargo build --release --target x86_64-unknown-linux-gnu && \
-    mv target/x86_64-unknown-linux-gnu/release/piped-proxy .
+# Build the application (no static linking for now to avoid compilation issues)
+RUN cargo build --release && \
+    mv target/release/piped-proxy .
 
 FROM debian:stable-slim
 
@@ -24,7 +23,7 @@ RUN apt-get update && \
 
 WORKDIR /app/
 
-COPY --from=BUILD /app/piped-proxy .
+COPY --from=build /app/piped-proxy .
 
 EXPOSE 8080
 
