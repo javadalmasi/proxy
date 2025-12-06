@@ -7,7 +7,7 @@
 - **SOCKS5 Support**: Can route traffic through SOCKS5 proxies for enhanced privacy and geo-bypass
 - **HTTP/3 (QUIC) Support**: Prioritizes HTTP/3 with UDP for improved performance, falling back to HTTP/2/HTTP/1.1 when not available
 - **Protocol Detection**: Response headers indicate which protocol (HTTP/3, HTTP/2, HTTP/1.1) was used to connect to the origin
-- **IPv6 Priority**: Prefer IPv6 connections when available (disable with `IPV4_ONLY` environment variable)
+- **IPv6 Priority**: IPv6 connections are preferred by default for both server and client (disable with `IPV4_ONLY` environment variable)
 - **Performance Optimizations**: TCP keepalive, connection pooling, and optimized HTTP settings for reduced latency
 - **Health Check Endpoint**: Provides `/health` endpoint for container monitoring (always enabled)
 - **Prometheus Metrics**: Provides `/metrics` endpoint for monitoring and Grafana integration (optional feature)
@@ -37,13 +37,13 @@ bypass restrictions while maintaining proper functionality.
 
 ### Environment Variables
 
-- `BIND`: Address to bind the server to (default: `0.0.0.0:8080`)
+- `BIND`: Address to bind the server to (default: `[::]:8080`, IPv6 preferred with IPv4 compatibility)
 - `UDS`: Set to `true` to use Unix Domain Socket instead of TCP
 - `BIND_UNIX`: Path to Unix socket (default: `./socket/actix.sock`)
 - `PROXY`: SOCKS5 proxy URL (e.g., `socks5://127.0.0.1:1080`)
 - `PROXY_USER`: Username for proxy authentication
 - `PROXY_PASS`: Password for proxy authentication
-- `IPV4_ONLY`: Use IPv4 only (set to `true`)
+- `IPV4_ONLY`: Use IPv4 only (set to `true`) - by default IPv6 is preferred for both server and client connections
 - `HASH_SECRET`: Secret for URL hashing (requires `qhash` feature)
 - `DISALLOW_IMAGE_TRANSCODING`: Disable image transcoding features
 

@@ -109,7 +109,7 @@ async fn main() -> std::io::Result<()> {
                 env::var("BIND_UNIX").unwrap_or_else(|_| "./socket/actix.sock".to_string());
             server.bind_uds(socket_path)?
         } else {
-            let bind = env::var("BIND").unwrap_or_else(|_| "0.0.0.0:8080".to_string());
+            let bind = env::var("BIND").unwrap_or_else(|_| "[::]:8080".to_string());
             server.bind(bind)?
         };
     }
