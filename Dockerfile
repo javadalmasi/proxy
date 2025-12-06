@@ -1,4 +1,4 @@
-FROM rust:1.78-slim as build
+FROM rust:1.83-slim as build
 
 WORKDIR /app/
 
@@ -10,7 +10,7 @@ RUN apt-get update && \
     nasm && \
     rm -rf /var/lib/apt/lists/*
 
-# Build the application (no static linking for now to avoid compilation issues)
+# Build the application
 RUN cargo build --release && \
     mv target/release/piped-proxy .
 
