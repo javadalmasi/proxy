@@ -22,7 +22,7 @@ services:
       - './warp/data:/var/lib/cloudflare-warp'
 
   piped-proxy:
-    build: .
+    image: ghcr.io/javadalmasi/proxy:latest
     container_name: piped-proxy
     restart: always
     depends_on:
