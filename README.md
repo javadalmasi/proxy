@@ -1,7 +1,5 @@
 # Proxy
 
-A high-performance proxy for Piped written in Rust, meant to supersede [http3-ytproxy](https://github.com/TeamPiped/http3-ytproxy).
-
 ## Features
 
 - **High Performance**: Built with Rust and Actix Web for optimal performance
