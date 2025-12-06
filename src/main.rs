@@ -608,6 +608,16 @@ async fn index(req: HttpRequest) -> Result<HttpResponse, Box<dyn Error>> {
         }
     }
 
+    // Add protocol information to response headers after filtering to ensure it's included
+    let protocol_version = match resp.version() {
+        reqwest::Version::HTTP_10 => "HTTP/1.0",
+        reqwest::Version::HTTP_11 => "HTTP/1.1", 
+        reqwest::Version::HTTP_2 => "HTTP/2",
+        reqwest::Version::HTTP_3 => "HTTP/3",
+        _ => "UNKNOWN",
+    };
+    response.append_header(("X-Proxy-Protocol", protocol_version));
+
     // Fix range request handling - convert 200 to 206 if we have a range request
     // and ensure Content-Range header is present
     handle_range_response_correction(&mut response, range.as_ref(), &resp);

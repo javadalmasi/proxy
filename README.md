@@ -6,6 +6,7 @@
 - **High Concurrency**: Optimized for thousands of concurrent connections with connection pooling
 - **SOCKS5 Support**: Can route traffic through SOCKS5 proxies for enhanced privacy and geo-bypass
 - **HTTP/3 (QUIC) Support**: Prioritizes HTTP/3 with UDP for improved performance, falling back to HTTP/2/HTTP/1.1 when not available
+- **Protocol Detection**: Response headers indicate which protocol (HTTP/3, HTTP/2, HTTP/1.1) was used to connect to the origin
 - **IPv6 Priority**: Prefer IPv6 connections when available (disable with `IPV4_ONLY` environment variable)
 - **Performance Optimizations**: TCP keepalive, connection pooling, and optimized HTTP settings for reduced latency
 - **Health Check Endpoint**: Provides `/health` endpoint for container monitoring (always enabled)
@@ -115,6 +116,10 @@ When running in containers, the health check endpoint can be used for:
 - Kubernetes liveness and readiness probes
 - Docker health checks
 - Container orchestrator monitoring
+
+### Response Headers
+The proxy adds the following header to indicate the protocol used for the upstream connection:
+- `X-Proxy-Protocol`: Shows which protocol (HTTP/3, HTTP/2, HTTP/1.1) was used to connect to the origin server
 
 ### Performance Tuning
 The proxy is optimized for high concurrency with:
