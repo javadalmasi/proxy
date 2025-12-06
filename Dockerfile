@@ -2,6 +2,7 @@ FROM rust:1.83-slim as build
 
 WORKDIR /app/
 
+# Copy source files
 COPY . .
 
 # Install dependencies
@@ -10,9 +11,10 @@ RUN apt-get update && \
     nasm && \
     rm -rf /var/lib/apt/lists/*
 
-# Build the application
-RUN cargo build --release && \
-    mv target/release/piped-proxy .
+# Build the application with the same flags as the build workflow
+RUN RUSTFLAGS='-C target-feature=+crt-static' \
+    cargo build --release --target x86_64-unknown-linux-gnu && \
+    mv target/x86_64-unknown-linux-gnu/release/piped-proxy .
 
 FROM debian:stable-slim
 
