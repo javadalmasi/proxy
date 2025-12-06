@@ -130,9 +130,9 @@ The proxy is optimized for high concurrency with:
 - Optimized timeouts for connection reuse
 
 ### Build Options
-- Default build: `cargo build` (health check only, no metrics)
-- With metrics: `cargo build --features metrics`
-- With HTTP/3: `RUSTFLAGS='--cfg reqwest_unstable' cargo build --features http3`
+- Default build: `RUSTFLAGS='--cfg reqwest_unstable' cargo build` (includes HTTP/3, health check, no metrics) 
+- With metrics: `RUSTFLAGS='--cfg reqwest_unstable' cargo build --features metrics`
+- With HTTP/3 disabled: `cargo build --features="" --no-default-features` (if you want to disable HTTP/3)
 - With all features: `RUSTFLAGS='--cfg reqwest_unstable' cargo build --features http3,metrics`
 
 ## Environment-Specific Deployment
