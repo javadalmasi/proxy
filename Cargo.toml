@@ -36,7 +36,7 @@ listenfd = "1.0.1"
 http = "1.2.0"
 
 [features]
-default = ["webp", "mimalloc", "reqwest-rustls", "qhash"]
+default = ["webp", "mimalloc", "reqwest-rustls", "qhash", "http3"]
 
 reqwest-rustls = ["reqwest/rustls-tls"]
 reqwest-native-tls = ["reqwest/default-tls"]
