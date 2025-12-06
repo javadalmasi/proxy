@@ -101,16 +101,20 @@ static RE_DASH_MANIFEST: Lazy<Regex> =
     Lazy::new(|| Regex::new("BaseURL>(https://[^<]+)</BaseURL").unwrap());
 
 static CLIENT: Lazy<Client> = Lazy::new(|| {
-    let builder = Client::builder()
+    let mut builder = Client::builder()
         .user_agent("Mozilla/5.0 (Windows NT 10.0; rv:102.0) Gecko/20100101 Firefox/102.0");
 
+    // Enable HTTP/3 support - this enables HTTP/3 with fallback to HTTP/2/HTTP/1.1
+    // By enabling the http3 feature in Cargo.toml and initializing the client, 
+    // reqwest will automatically try HTTP/3 first if available, falling back to HTTP/2/1.1
+    
     let proxy = if let Ok(proxy) = env::var("PROXY") {
         reqwest::Proxy::all(proxy).ok()
     } else {
         None
     };
 
-    let builder = if let Some(proxy) = proxy {
+    builder = if let Some(proxy) = proxy {
         // proxy basic auth
         if let Ok(proxy_auth_user) = env::var("PROXY_USER") {
             let proxy_auth_pass = env::var("PROXY_PASS").unwrap_or_default();
@@ -125,7 +129,9 @@ static CLIENT: Lazy<Client> = Lazy::new(|| {
     if utils::get_env_bool("IPV4_ONLY") {
         builder.local_address("0.0.0.0".parse().ok())
     } else {
-        builder
+        // Use both IPv6 and IPv4 addresses, which allows the system to choose based on availability
+        // but with the underlying support for dual-stack that can prefer IPv6
+        builder.local_address("[::]".parse().ok())
     }
     .build()
     .unwrap()

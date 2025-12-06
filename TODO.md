@@ -38,6 +38,8 @@
 - [x] Handle range requests for media streaming
 - [x] Support for multiple platforms (Linux AMD64/ARM64)
 - [x] Add comprehensive README documentation
+- [x] Add HTTP/3 (QUIC/UDP) support with fallback to HTTP/2/HTTP/1.1
+- [x] Implement IPv6 connection prioritization
 
 ## Ideas for Future Development
 

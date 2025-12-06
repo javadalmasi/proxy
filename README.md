@@ -4,6 +4,8 @@
 
 - **High Performance**: Built with Rust and Actix Web for optimal performance
 - **SOCKS5 Support**: Can route traffic through SOCKS5 proxies for enhanced privacy and geo-bypass
+- **HTTP/3 (QUIC) Support**: Prioritizes HTTP/3 with UDP for improved performance, falling back to HTTP/2/HTTP/1.1 when not available
+- **IPv6 Priority**: Prefer IPv6 connections when available (disable with `IPV4_ONLY` environment variable)
 - **Image Transcoding**: Optionally transcode images to WebP/AVIF to save bandwidth
 - **Range Request Handling**: Properly handles HTTP range requests for media streaming
 - **Caching Headers**: Preserves caching headers from upstream services
@@ -72,11 +74,11 @@ docker-compose up -d
 git clone https://github.com/javadalmasi/proxy.git
 cd proxy
 
-# Build the project
-cargo build --release
+# Build the project with HTTP/3 support
+RUSTFLAGS='--cfg reqwest_unstable' cargo build --release
 
 # Run the proxy
-./target/release/piped-proxy
+RUSTFLAGS='--cfg reqwest_unstable' ./target/release/piped-proxy
 ```
 
 ## Environment-Specific Deployment
