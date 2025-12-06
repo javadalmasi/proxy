@@ -3,11 +3,13 @@
 ## Features
 
 - **High Performance**: Built with Rust and Actix Web for optimal performance
+- **High Concurrency**: Optimized for thousands of concurrent connections with connection pooling
 - **SOCKS5 Support**: Can route traffic through SOCKS5 proxies for enhanced privacy and geo-bypass
 - **HTTP/3 (QUIC) Support**: Prioritizes HTTP/3 with UDP for improved performance, falling back to HTTP/2/HTTP/1.1 when not available
 - **IPv6 Priority**: Prefer IPv6 connections when available (disable with `IPV4_ONLY` environment variable)
-- **Health Check Endpoint**: Provides `/health` endpoint for container monitoring
-- **Prometheus Metrics**: Provides `/metrics` endpoint for monitoring and Grafana integration
+- **Performance Optimizations**: TCP keepalive, connection pooling, and optimized HTTP settings for reduced latency
+- **Health Check Endpoint**: Provides `/health` endpoint for container monitoring (always enabled)
+- **Prometheus Metrics**: Provides `/metrics` endpoint for monitoring and Grafana integration (optional feature)
 - **Image Transcoding**: Optionally transcode images to WebP/AVIF to save bandwidth
 - **Range Request Handling**: Properly handles HTTP range requests for media streaming
 - **Caching Headers**: Preserves caching headers from upstream services
@@ -99,18 +101,34 @@ The proxy provides a health check endpoint at `/health` that returns a JSON resp
   "timestamp": 1234567890
 }
 ```
+This endpoint is always available regardless of feature configuration.
 
-### Metrics Endpoint
-The proxy exposes Prometheus metrics at `/metrics` for monitoring and Grafana integration:
-- Access metrics at `http://your-proxy-host:port/metrics`
+### Metrics Endpoint (Optional)
+The proxy can expose Prometheus metrics at `/metrics` for monitoring and Grafana integration when the `metrics` feature is enabled:
+- Access metrics at `http://your-proxy-host:port/metrics` (only when metrics feature is enabled)
 - Metrics include request counts, response times, and active connections
 - Compatible with Prometheus and Grafana for comprehensive monitoring dashboards
+- Enable with `--features metrics` during build
 
 ### Docker and Container Monitoring
 When running in containers, the health check endpoint can be used for:
 - Kubernetes liveness and readiness probes
 - Docker health checks
 - Container orchestrator monitoring
+
+### Performance Tuning
+The proxy is optimized for high concurrency with:
+- Connection pooling (100 idle connections per host)
+- TCP keepalive and NODELAY for low latency
+- High connection limits (up to 8192 concurrent connections)
+- Multiple worker threads based on CPU cores
+- Optimized timeouts for connection reuse
+
+### Build Options
+- Default build: `cargo build` (health check only, no metrics)
+- With metrics: `cargo build --features metrics`
+- With HTTP/3: `RUSTFLAGS='--cfg reqwest_unstable' cargo build --features http3`
+- With all features: `RUSTFLAGS='--cfg reqwest_unstable' cargo build --features http3,metrics`
 
 ## Environment-Specific Deployment
 

@@ -13,9 +13,10 @@ reqwest = { version = "0.12.9", features = ["stream", "brotli", "gzip", "socks",
 qstring = "0.7.2"
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
-# Metrics & Monitoring
-prometheus = "0.13"
-actix-web-prom = "0.7"
+num_cpus = "1.16.0"
+# Metrics & Monitoring (optional)
+prometheus = { version = "0.13", optional = true }
+actix-web-prom = { version = "0.7", optional = true }
 
 # Alternate Allocator 
 mimalloc = { version = "0.1.41", optional = true }
@@ -40,6 +41,7 @@ default = ["webp", "mimalloc", "reqwest-rustls", "qhash"]
 reqwest-rustls = ["reqwest/rustls-tls"]
 reqwest-native-tls = ["reqwest/default-tls"]
 http3 = ["reqwest/http3"]
+metrics = ["prometheus", "actix-web-prom"]
 
 avif = ["dep:ravif", "dep:rgb", "dep:image"]
 webp = ["dep:libwebp-sys", "dep:image"]
