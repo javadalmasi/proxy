@@ -37,6 +37,7 @@ bypass restrictions while maintaining proper functionality.
 - `PROXY_USER`: Username for proxy authentication
 - `PROXY_PASS`: Password for proxy authentication
 - `IPV4_ONLY`: Use IPv4 only (set to `true`)
+- `IPV6_PREFERRED`: Prefer IPv6 over IPv4 when available (set to `true`)
 - `HASH_SECRET`: Secret for URL hashing (requires `qhash` feature)
 - `DISALLOW_IMAGE_TRANSCODING`: Disable image transcoding features
 

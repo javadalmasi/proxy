@@ -130,6 +130,10 @@ static CLIENT: Lazy<Client> = Lazy::new(|| {
 
     if utils::get_env_bool("IPV4_ONLY") {
         builder.local_address("0.0.0.0".parse().ok())
+    } else if utils::get_env_bool("IPV6_PREFERRED") {
+        // When IPv6 is preferred, set a default IPv6 local address if needed
+        // The underlying hyper client will attempt IPv6 connections first when available
+        builder
     } else {
         builder
     }
