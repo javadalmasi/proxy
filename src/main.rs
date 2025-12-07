@@ -102,7 +102,13 @@ static RE_DASH_MANIFEST: Lazy<Regex> =
 
 static CLIENT: Lazy<Client> = Lazy::new(|| {
     let builder = Client::builder()
-        .user_agent("Mozilla/5.0 (Windows NT 10.0; rv:102.0) Gecko/20100101 Firefox/102.0");
+        .user_agent("Mozilla/5.0 (Windows NT 10.0; rv:102.0) Gecko/20100101 Firefox/102.0")
+        .http2_adaptive_window(true) // Enable adaptive window sizing
+        .http2_max_frame_size(Some(16_384)) // Set frame size to 16KB
+        .http2_initial_connection_window_size(2_097_152) // 2MB connection window
+        .http2_initial_stream_window_size(2_097_152) // 2MB stream window
+        .pool_max_idle_per_host(100) // Allow more idle connections per host
+        .pool_idle_timeout(std::time::Duration::from_secs(90)); // Higher idle timeout
 
     let proxy = if let Ok(proxy) = env::var("PROXY") {
         reqwest::Proxy::all(proxy).ok()

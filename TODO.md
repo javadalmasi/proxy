@@ -38,6 +38,7 @@
 - [x] Handle range requests for media streaming
 - [x] Support for multiple platforms (Linux AMD64/ARM64)
 - [x] Add comprehensive README documentation
+- [x] Add HTTP/2 support with high concurrent connections
 
 ## Ideas for Future Development
 
