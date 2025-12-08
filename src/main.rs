@@ -101,16 +101,6 @@ static RE_DASH_MANIFEST: Lazy<Regex> =
     Lazy::new(|| Regex::new("BaseURL>(https://[^<]+)</BaseURL").unwrap());
 
 static CLIENT: Lazy<Client> = Lazy::new(|| {
-    // Check for IPv6 preference and log availability
-    if utils::get_env_bool("IPV6_PREFERRED") {
-        let ipv6_available = is_ipv6_available();
-        if ipv6_available {
-            println!("IPv6 connectivity is available and will be preferred");
-        } else {
-            println!("IPv6 connectivity is not available, falling back to IPv4");
-        }
-    }
-
     let mut builder = Client::builder()
         .user_agent("Mozilla/5.0 (Windows NT 10.0; rv:102.0) Gecko/20100101 Firefox/102.0")
         .http2_adaptive_window(true) // Enable adaptive window sizing
@@ -119,6 +109,20 @@ static CLIENT: Lazy<Client> = Lazy::new(|| {
         .http2_initial_stream_window_size(2_097_152) // 2MB stream window
         .pool_max_idle_per_host(100) // Allow more idle connections per host
         .pool_idle_timeout(std::time::Duration::from_secs(90)); // Higher idle timeout
+
+    // Check for IPv6 preference and log availability
+    let ipv6_local_address = if utils::get_env_bool("IPV6_PREFERRED") {
+        let ipv6_available = is_ipv6_available();
+        if ipv6_available {
+            println!("IPv6 connectivity is available and will be preferred");
+            Some("[::]:0".parse().ok())
+        } else {
+            println!("IPv6 connectivity is not available, falling back to IPv4");
+            None
+        }
+    } else {
+        None
+    };
 
     // Apply proxy if provided
     let proxy = if let Ok(proxy) = env::var("PROXY") {
@@ -140,13 +144,8 @@ static CLIENT: Lazy<Client> = Lazy::new(|| {
     // Apply local address based on IPv4/IPv6 preferences
     if utils::get_env_bool("IPV4_ONLY") {
         builder.local_address("0.0.0.0".parse().ok())
-    } else if utils::get_env_bool("IPV6_PREFERRED") {
-        // When IPv6 is preferred, check if IPv6 is available
-        if is_ipv6_available() {
-            builder.local_address("[::]:0".parse().ok())  // Use any IPv6 address
-        } else {
-            builder // Fall back to default behavior
-        }
+    } else if let Some(addr) = ipv6_local_address {
+        builder.local_address(addr)
     } else {
         builder // Use default behavior
     }
@@ -157,19 +156,24 @@ static CLIENT: Lazy<Client> = Lazy::new(|| {
 // Function to check if IPv6 is available
 fn is_ipv6_available() -> bool {
     // Try to create a basic IPv6 socket to see if the system supports it
-    match std::net::TcpStream::connect_timeout(
-        &"2001:4860:4860::8888:53".parse::<std::net::SocketAddr>().unwrap(),
-        std::time::Duration::from_secs(2),
-    ) {
-        Ok(_) => {
-            println!("IPv6 connectivity check: Successful connection to IPv6 address");
-            true
-        },
-        Err(_) => {
-            println!("IPv6 connectivity check: Could not connect to IPv6 address");
-            false
+    if let Ok(socket_addr) = "[2001:4860:4860::8888]:53".parse::<std::net::SocketAddr>() {
+        match std::net::TcpStream::connect_timeout(
+            &socket_addr,
+            std::time::Duration::from_secs(2),
+        ) {
+            Ok(_) => {
+                println!("IPv6 connectivity check: Successful connection to IPv6 address");
+                return true;
+            },
+            Err(_) => {
+                println!("IPv6 connectivity check: Could not connect to IPv6 address");
+                return false;
+            }
         }
     }
+
+    println!("IPv6 connectivity check: Could not parse IPv6 address");
+    false
 }
 
 const ANDROID_USER_AGENT: &str = "com.google.android.youtube/1537338816 (Linux; U; Android 13; en_US; ; Build/TQ2A.230505.002; Cronet/113.0.5672.24)";
