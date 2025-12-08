@@ -110,15 +110,26 @@ static CLIENT: Lazy<Client> = Lazy::new(|| {
         .pool_max_idle_per_host(100) // Allow more idle connections per host
         .pool_idle_timeout(std::time::Duration::from_secs(90)); // Higher idle timeout
 
+    // Check if proxy is configured
+    let has_proxy = env::var("PROXY").is_ok();
+
     // Check for IPv6 preference and log availability
+    // When proxy is used, assume IPv6 connectivity is handled by the proxy
     let ipv6_local_address = if utils::get_env_bool("IPV6_PREFERRED") {
-        let ipv6_available = is_ipv6_available();
-        if ipv6_available {
-            println!("IPv6 connectivity is available and will be preferred");
+        if has_proxy {
+            // When a proxy is configured, we assume the proxy handles IPv6 connectivity
+            println!("IPv6 connectivity: Proxy is configured, IPv6 preference will be handled by proxy");
             Some("[::]:0".parse().ok())
         } else {
-            println!("IPv6 connectivity is not available, falling back to IPv4");
-            None
+            // Only check IPv6 connectivity when not using proxy
+            let ipv6_available = is_ipv6_available();
+            if ipv6_available {
+                println!("IPv6 connectivity is available and will be preferred");
+                Some("[::]:0".parse().ok())
+            } else {
+                println!("IPv6 connectivity is not available, falling back to IPv4");
+                None
+            }
         }
     } else {
         None
