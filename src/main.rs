@@ -119,6 +119,7 @@ static CLIENT: Lazy<Client> = Lazy::new(|| {
         if has_proxy {
             // When a proxy is configured, we assume the proxy handles IPv6 connectivity
             println!("IPv6 connectivity: Proxy is configured, IPv6 preference will be handled by proxy");
+            // For proxy environments, always set IPv6 local address to signal IPv6 preference
             Some("[::]:0".parse().ok())
         } else {
             // Only check IPv6 connectivity when not using proxy
