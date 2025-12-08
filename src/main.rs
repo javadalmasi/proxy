@@ -101,7 +101,17 @@ static RE_DASH_MANIFEST: Lazy<Regex> =
     Lazy::new(|| Regex::new("BaseURL>(https://[^<]+)</BaseURL").unwrap());
 
 static CLIENT: Lazy<Client> = Lazy::new(|| {
-    let builder = Client::builder()
+    // Check for IPv6 preference and log availability
+    if utils::get_env_bool("IPV6_PREFERRED") {
+        let ipv6_available = is_ipv6_available();
+        if ipv6_available {
+            println!("IPv6 connectivity is available and will be preferred");
+        } else {
+            println!("IPv6 connectivity is not available, falling back to IPv4");
+        }
+    }
+
+    let mut builder = Client::builder()
         .user_agent("Mozilla/5.0 (Windows NT 10.0; rv:102.0) Gecko/20100101 Firefox/102.0")
         .http2_adaptive_window(true) // Enable adaptive window sizing
         .http2_max_frame_size(Some(16_384)) // Set frame size to 16KB
@@ -110,36 +120,57 @@ static CLIENT: Lazy<Client> = Lazy::new(|| {
         .pool_max_idle_per_host(100) // Allow more idle connections per host
         .pool_idle_timeout(std::time::Duration::from_secs(90)); // Higher idle timeout
 
+    // Apply proxy if provided
     let proxy = if let Ok(proxy) = env::var("PROXY") {
         reqwest::Proxy::all(proxy).ok()
     } else {
         None
     };
 
-    let builder = if let Some(proxy) = proxy {
+    if let Some(proxy) = proxy {
         // proxy basic auth
         if let Ok(proxy_auth_user) = env::var("PROXY_USER") {
             let proxy_auth_pass = env::var("PROXY_PASS").unwrap_or_default();
-            builder.proxy(proxy.basic_auth(&proxy_auth_user, &proxy_auth_pass))
+            builder = builder.proxy(proxy.basic_auth(&proxy_auth_user, &proxy_auth_pass));
         } else {
-            builder.proxy(proxy)
+            builder = builder.proxy(proxy);
         }
-    } else {
-        builder
-    };
+    }
 
+    // Apply local address based on IPv4/IPv6 preferences
     if utils::get_env_bool("IPV4_ONLY") {
         builder.local_address("0.0.0.0".parse().ok())
     } else if utils::get_env_bool("IPV6_PREFERRED") {
-        // When IPv6 is preferred, set a default IPv6 local address if needed
-        // The underlying hyper client will attempt IPv6 connections first when available
-        builder
+        // When IPv6 is preferred, check if IPv6 is available
+        if is_ipv6_available() {
+            builder.local_address("[::]:0".parse().ok())  // Use any IPv6 address
+        } else {
+            builder // Fall back to default behavior
+        }
     } else {
-        builder
+        builder // Use default behavior
     }
     .build()
     .unwrap()
 });
+
+// Function to check if IPv6 is available
+fn is_ipv6_available() -> bool {
+    // Try to create a basic IPv6 socket to see if the system supports it
+    match std::net::TcpStream::connect_timeout(
+        &"2001:4860:4860::8888:53".parse::<std::net::SocketAddr>().unwrap(),
+        std::time::Duration::from_secs(2),
+    ) {
+        Ok(_) => {
+            println!("IPv6 connectivity check: Successful connection to IPv6 address");
+            true
+        },
+        Err(_) => {
+            println!("IPv6 connectivity check: Could not connect to IPv6 address");
+            false
+        }
+    }
+}
 
 const ANDROID_USER_AGENT: &str = "com.google.android.youtube/1537338816 (Linux; U; Android 13; en_US; ; Build/TQ2A.230505.002; Cronet/113.0.5672.24)";
 const ALLOWED_DOMAINS: [&str; 10] = [
