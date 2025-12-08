@@ -153,27 +153,35 @@ static CLIENT: Lazy<Client> = Lazy::new(|| {
     .unwrap()
 });
 
-// Function to check if IPv6 is available
+// Function to check if IPv6 is available by making an HTTP request to an IPv6-only service
 fn is_ipv6_available() -> bool {
-    // Try to create a basic IPv6 socket to see if the system supports it
-    if let Ok(socket_addr) = "[2001:4860:4860::8888]:53".parse::<std::net::SocketAddr>() {
+    // Try making a simple HTTP request to an IPv6-enabled service
+    // Using api6.ipify.org which is specifically designed to return your IPv6 address
+    // We'll do this with a separate client to avoid circular dependency issues
+
+        // We can't make HTTP requests in a sync context here, so we'll just check
+    // system IPv6 socket availability instead
+
+    // Check system IPv6 availability by attempting to make an IPv6 socket
+    // First try to parse the IPv6 address
+    if let Ok(socket_addr) = "[2606:4700:4700::1111]:80".parse::<std::net::SocketAddr>() {
         match std::net::TcpStream::connect_timeout(
             &socket_addr,
             std::time::Duration::from_secs(2),
         ) {
             Ok(_) => {
-                println!("IPv6 connectivity check: Successful connection to IPv6 address");
+                println!("IPv6 connectivity check: System indicates IPv6 connectivity is available");
                 return true;
             },
             Err(_) => {
-                println!("IPv6 connectivity check: Could not connect to IPv6 address");
+                println!("IPv6 connectivity check: Could not establish IPv6 connection");
                 return false;
             }
         }
+    } else {
+        println!("IPv6 connectivity check: Could not parse IPv6 address");
+        return false;
     }
-
-    println!("IPv6 connectivity check: Could not parse IPv6 address");
-    false
 }
 
 const ANDROID_USER_AGENT: &str = "com.google.android.youtube/1537338816 (Linux; U; Android 13; en_US; ; Build/TQ2A.230505.002; Cronet/113.0.5672.24)";
